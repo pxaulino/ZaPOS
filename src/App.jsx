@@ -21,6 +21,7 @@ import {
 } from './services'
 
 const productTypes = ['Sativa', 'Indica', 'Hybrida']
+const sizeOptions = ['Todos', ...[1, 2, 3, 3.5, 4, 5, 6, 7, 8, 9].map((grams) => `${grams} g`)]
 
 const initialProducts = []
 
@@ -1075,10 +1076,6 @@ function EstimatesModule({ products, cashSummary }) {
   const [estimateGramFilter, setEstimateGramFilter] = useState('Todos')
   const [estimateTypeFilter, setEstimateTypeFilter] = useState('Todos')
   const [estimatePage, setEstimatePage] = useState(1)
-  const sizeOptions = useMemo(
-    () => ['Todos', ...Array.from({ length: 9 }, (_, i) => `${i + 1} g`)],
-    []
-  )
   const typeOptions = useMemo(() => ['Todos', ...productTypes], [])
   const rows = products
     .filter((product) => product.stock > 0)
@@ -1784,10 +1781,6 @@ function App() {
     [cart]
   )
 
-  const sizeOptions = useMemo(
-    () => ['Todos', ...Array.from({ length: 9 }, (_, i) => `${i + 1} g`)],
-    []
-  )
   const typeOptions = useMemo(() => ['Todos', ...productTypes], [])
 
   const filteredSalesProducts = useMemo(
