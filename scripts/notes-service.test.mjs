@@ -200,9 +200,13 @@ test('missing notes table is an explicit error; empty table remains a valid resu
   assert.deepEqual(await services.getNotes(), [])
 })
 
-test('notes failure does not block operational state or change stock and money', async () => {
+test('startup only requests products, transactions and debts, without waiting on notes or logs', async () => {
+  let extraReads = 0
+  globalThis.__stateTest.getNotes = () => { extraReads++; return new Promise(() => {}) }
+  globalThis.__stateTest.getLogs = () => { extraReads++; return new Promise(() => {}) }
   const data = await state.getAppState()
   assert.deepEqual(data.products, [{ id: 1, stock: 8 }])
   assert.deepEqual(data.transactions, [{ id: 2, amount: 150 }])
-  assert.equal(data.notesError, 'notes unavailable')
+  assert.equal(extraReads, 0)
+  assert.deepEqual(Object.keys(data).sort(), ['debts', 'products', 'transactions'])
 })

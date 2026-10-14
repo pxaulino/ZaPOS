@@ -1,4 +1,7 @@
 const paths = {
+  weight: <><path d="M8 7h8l5 14H3L8 7Z" /><circle cx="12" cy="4" r="3" /></>,
+  hash: <path d="m9 3-2 18M17 3l-2 18M4 9h17M3 15h17" />,
+  upload: <><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5" /></>,
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
   tune: <><path d="M4 7h4m6 0h6M4 17h10m6 0h0" /><circle cx="11" cy="7" r="3" /><circle cx="17" cy="17" r="3" /></>,
   pin: <><path d="m9 3 12 12-4 1-3 4-4-6-6-4 4-3 1-4ZM9 15l-6 6" /></>,

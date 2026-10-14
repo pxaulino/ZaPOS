@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles.css'
+import './components/forms.css'
 import { installAppInteractions } from './lib/appInteractions'
 
 const removeAppInteractions = installAppInteractions()

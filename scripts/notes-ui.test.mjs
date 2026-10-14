@@ -10,7 +10,7 @@ import { JSDOM } from 'jsdom'
 import React, { act } from 'react'
 
 const require = createRequire(import.meta.url)
-const dom = new JSDOM('<!doctype html><div id="test-root"></div>', {
+const dom = new JSDOM('<!doctype html><div id="root"></div>', {
   url: 'http://localhost/'
 })
 for (const name of [
@@ -25,8 +25,10 @@ for (const name of [
 ])
   globalThis[name] = dom.window[name]
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+let restoredScroll = null
+window.scrollTo = (x, y) => { restoredScroll = { x, y } }
 const { createRoot } = await import('react-dom/client')
-const root = createRoot(document.getElementById('test-root'))
+const root = createRoot(document.getElementById('root'))
 const directory = await mkdtemp(join(tmpdir(), 'zapos-notes-test-'))
 const notifications = []
 let store = []
@@ -504,6 +506,114 @@ test('a confirmed auth event releases the loader even when getSession is still p
   } finally {
     globalThis.__appServiceTest.getCurrentSession = originalSession
     globalThis.__appServiceTest.subscribeToAuthChanges = originalSubscribe
+    await act(async () => root.render(null))
+  }
+})
+
+test('payment dialog lives above the app, locks scroll and updates debt and cash from one confirmed request', async () => {
+  await act(async () => root.render(null))
+  const service = globalThis.__appServiceTest
+  const originalLoad = service.getAppState
+  const debt = { id: 44, customerName: 'Cliente demo', totalAmount: 1000, paidAmount: 350, remainingAmount: 650, status: 'partial', date: now, items: [], payments: [] }
+  let reads = 0
+  let payments = 0
+  let resolvePayment
+  service.getAppState = async () => { reads++; return { products, debts: [debt], transactions: [] } }
+  service.addDebtPayment = async (id, draft) => {
+    payments++
+    assert.equal(id, 44)
+    assert.equal(draft.amount, 200)
+    return new Promise((resolve) => { resolvePayment = resolve })
+  }
+  try {
+    window.scrollY = 420
+    await act(async () => root.render(React.createElement(App)))
+    await click(findButton('Deudas'))
+    await click(document.querySelector('.debt-client-toggle'))
+    await click(findButton('Abonar'))
+    const overlay = document.querySelector('.payment-modal').parentElement
+    assert.equal(overlay.parentElement, document.body)
+    assert.equal(document.getElementById('root').inert, true)
+    assert.equal(document.body.style.position, 'fixed')
+    assert.equal(document.body.style.top, '-420px')
+    assert.equal(document.activeElement.id, 'payment-modal-heading')
+    await type(document.getElementById('payment-amount'), '200')
+    await act(async () => {
+      const form = document.querySelector('.payment-modal-form')
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    })
+    assert.equal(payments, 1)
+    assert.equal(document.querySelector('.payment-modal-close').disabled, true)
+    await act(async () => resolvePayment({
+      debt: { ...debt, paidAmount: 550, remainingAmount: 450, payments: [{ id: 5, amount: 200, date: now }] },
+      transaction: { id: 5, type: 'debt_payment', paymentMethod: 'cash', amount: 200, note: 'Abono demo', date: now, items: [] },
+    }))
+    assert.equal(document.querySelector('.payment-modal'), null)
+    assert.equal(document.body.style.position, '')
+    assert.equal(document.getElementById('root').inert, undefined)
+    assert.deepEqual(restoredScroll, { x: 0, y: 420 })
+    assert.ok(document.querySelector('.debt-account-stat.pending').textContent.includes('RD$450.00'))
+    await click(findButton('Caja'))
+    assert.ok(document.querySelector('.cash-shell').textContent.includes('RD$200.00'))
+    assert.equal(reads, 1, 'payment must not refetch unrelated tables')
+    assert.equal(products[0].stock, 4)
+  } finally {
+    service.getAppState = originalLoad
+    delete service.addDebtPayment
+    window.scrollY = 0
+    await act(async () => root.render(null))
+  }
+})
+
+test('notes keep the background locked while confirming discard and restore focus when closed', async () => {
+  await renderNotes()
+  const opener = findButton('Nueva nota')
+  opener.focus()
+  await click(opener)
+  assert.equal(document.body.style.position, 'fixed')
+  assert.equal(document.getElementById('root').inert, true)
+  await type(byLabel('Título de la nota'), 'Borrador')
+  await click(byLabel('Cerrar nota'))
+  assert.ok(document.querySelector('[role="alertdialog"]'))
+  assert.equal(document.body.style.position, 'fixed')
+  await click(findButton('Cancelar'))
+  assert.equal(document.body.style.position, 'fixed')
+  assert.equal(byLabel('Título de la nota').value, 'Borrador')
+  await click(byLabel('Cerrar nota'))
+  await click(findButton('Descartar'))
+  assert.equal(document.body.style.position, '')
+  assert.notEqual(document.getElementById('root').inert, true)
+  assert.equal(document.activeElement, opener)
+})
+
+test('product creation uses the returned product without refetching the app', async () => {
+  await act(async () => root.render(null))
+  const service = globalThis.__appServiceTest
+  const originalLoad = service.getAppState
+  let reads = 0
+  let saves = 0
+  service.getAppState = async () => { reads++; return originalLoad() }
+  service.createProduct = async (payload) => { saves++; return { ...payload, id: 99 } }
+  service.createLog = async () => ({ id: 12 })
+  try {
+    await act(async () => root.render(React.createElement(App)))
+    await click(findButton('Inventario'))
+    await click(findButton('Nuevo'))
+    for (const [id, value] of [['product-name', 'Producto nuevo'], ['product-stock', '8'], ['product-cost', '100'], ['product-price', '150']]) {
+      const input = document.getElementById(id)
+      assert.ok(document.querySelector(`label[for="${id}"]`))
+      await type(input, value)
+    }
+    await act(async () => document.querySelector('.inventory-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    assert.equal(saves, 1)
+    assert.equal(reads, 1)
+    assert.ok(document.querySelector('.inventory-list').textContent.includes('Producto nuevo'))
+    assert.ok(document.querySelector('.inventory-stats').textContent.includes('RD$1,800.00'))
+  } finally {
+    service.getAppState = originalLoad
+    delete service.createProduct
+    delete service.createLog
     await act(async () => root.render(null))
   }
 })

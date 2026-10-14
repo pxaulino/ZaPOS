@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import logo from '../logo.png'
 import { readWithTimeout } from './lib/readWithTimeout'
 import InterfaceIcon from './components/InterfaceIcon'
+import ModalLayer from './components/ModalLayer'
 import KpiCard from './components/KpiCard'
 import LazyNotesModule, { preloadNotes } from './components/LazyNotesModule'
 import ModuleLoader, { ModuleLoadError } from './components/ModuleLoader'
@@ -158,24 +159,11 @@ function ConfirmDialog({
   onConfirm,
   isLoading = false,
 }) {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape' && !isLoading) onCancel?.() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, isLoading, onCancel])
-
-  useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
-  }, [open])
-
   if (!open) return null
 
   return (
-    <div className="modal-backdrop" onClick={() => !isLoading && onCancel?.()}>
-      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+    <ModalLayer onDismiss={() => !isLoading && onCancel?.()}>
+      <div className="confirm-modal" role="dialog" aria-modal="true" aria-label={title || 'Confirmar'}>
         <div className="modal-icon-wrap" style={{ background: iconBg, borderColor: iconBorder }}>
           <span className="material-symbols-outlined modal-icon" style={{ color: iconColor }}>
             {icon}
@@ -193,7 +181,7 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   )
 }
 
@@ -214,11 +202,11 @@ function EmptyState({ icon = 'inbox', title, subtitle }) {
 function FilterSheet({ isOpen, onClose, onApply, onClear, title = 'Filtros', children }) {
   if (!isOpen) return null;
   return (
-    <div className="filter-sheet-overlay" onClick={onClose}>
-      <div className="filter-sheet-content" onClick={(e) => e.stopPropagation()}>
+    <ModalLayer className="filter-sheet-overlay" onDismiss={onClose}>
+      <div className="filter-sheet-content" role="dialog" aria-modal="true" aria-label={title}>
         <div className="filter-sheet-header">
           <h3>{title}</h3>
-          <button className="filter-sheet-close" onClick={onClose}>
+          <button className="filter-sheet-close" aria-label="Cerrar filtros" onClick={onClose}>
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -236,7 +224,7 @@ function FilterSheet({ isOpen, onClose, onApply, onClear, title = 'Filtros', chi
           </button>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   )
 }
 
@@ -275,29 +263,18 @@ function StatusBadge({ status }) {
 
 /* ── ProductImageModal — Galería de imagen de producto ───── */
 function ProductImageModal({ src, name, onClose }) {
-  useEffect(() => {
-    if (!src) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [src, onClose])
-
   if (!src) return null
 
   return (
-    <div className="img-modal-overlay" onClick={onClose}>
+    <ModalLayer className="img-modal-overlay" onDismiss={onClose}>
       <button className="img-modal-close" type="button" onClick={onClose} aria-label="Cerrar imagen">
         <span className="material-symbols-outlined">close</span>
       </button>
-      <div className="img-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="img-modal-content" role="dialog" aria-modal="true" aria-label={name || 'Imagen del producto'}>
         <img className="img-modal-img" src={src} alt={name} />
         {name && <p className="img-modal-name">{name}</p>}
       </div>
-    </div>
+    </ModalLayer>
   )
 }
 
@@ -332,17 +309,6 @@ function CustomerPicker({ open, customers, selectedName, onSelect, onClose }) {
   }, [open])
 
   useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
-
-  useEffect(() => {
     setPage(1)
   }, [search])
 
@@ -362,8 +328,8 @@ function CustomerPicker({ open, customers, selectedName, onSelect, onClose }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="customer-picker-modal" onClick={(e) => e.stopPropagation()}>
+    <ModalLayer onDismiss={onClose}>
+      <div className="customer-picker-modal" role="dialog" aria-modal="true" aria-label="Seleccionar cliente">
         <div className="customer-picker-header">
           <div className="customer-picker-title">
             <span className="material-symbols-outlined">{showNewForm ? 'person_add' : 'person_search'}</span>
@@ -494,7 +460,7 @@ function CustomerPicker({ open, customers, selectedName, onSelect, onClose }) {
           </>
         )}
       </div>
-    </div>
+    </ModalLayer>
   )
 }
 
@@ -503,37 +469,30 @@ function PaymentModal({ open, debt, onClose, onSubmit, isSaving }) {
   const [amount, setAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [note, setNote] = useState('')
+  const submitting = useRef(false)
 
   useEffect(() => {
     if (!open) { setAmount(''); setPaymentMethod('cash'); setNote('') }
   }, [open])
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape' && !isSaving) onClose() }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [open, isSaving, onClose])
-
   if (!open || !debt) return null
 
   const remaining = Number(debt.remainingAmount || 0)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSubmit(debt, { amount, paymentMethod, note })
+    if (submitting.current || isSaving) return
+    submitting.current = true
+    try { await onSubmit(debt, { amount, paymentMethod, note }) }
+    finally { submitting.current = false }
   }
 
   return (
-    <div className="modal-backdrop" onClick={() => !isSaving && onClose()}>
+    <ModalLayer onDismiss={() => !isSaving && onClose()}>
       <div className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-heading" onClick={(e) => e.stopPropagation()}>
         <div className="payment-modal-header">
           <div className="payment-modal-title">
-            <h2 id="payment-modal-heading">Registrar abono</h2>
+            <h2 id="payment-modal-heading" tabIndex={-1} data-modal-initial-focus>Registrar abono</h2>
             <span className="payment-modal-account">
               Cuenta #{String(debt.id).slice(-5)}
             </span>
@@ -558,8 +517,8 @@ function PaymentModal({ open, debt, onClose, onSubmit, isSaving }) {
         <form className="payment-modal-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-group-label" htmlFor="payment-amount">Monto a abonar</label>
-            <div className="input-with-icon">
-              <InterfaceIcon name="payment" />
+            <div className="input-with-icon input-with-currency">
+              <span className="input-prefix" aria-hidden="true">RD$</span>
               <input
                 id="payment-amount"
                 className="form-input"
@@ -570,9 +529,8 @@ function PaymentModal({ open, debt, onClose, onSubmit, isSaving }) {
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Máx ${formatCurrency(remaining)}`}
+                placeholder="0.00"
                 disabled={isSaving}
-                autoFocus
                 required
               />
             </div>
@@ -597,20 +555,17 @@ function PaymentModal({ open, debt, onClose, onSubmit, isSaving }) {
 
           <div className="form-group">
             <label className="form-group-label" htmlFor="payment-note">
-              <InterfaceIcon name="note" />
               Nota <span className="field-optional">Opcional</span>
             </label>
             <textarea
               id="payment-note"
               className="form-input payment-note-input"
-              rows={3}
+              rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Escribe un detalle sobre este abono…"
-              aria-describedby="payment-note-hint"
+              placeholder="Ej. Abono en efectivo"
               disabled={isSaving}
             />
-            <p id="payment-note-hint" className="payment-note-hint">La nota se guardará junto con el abono.</p>
           </div>
 
           <div className="payment-modal-actions">
@@ -624,7 +579,7 @@ function PaymentModal({ open, debt, onClose, onSubmit, isSaving }) {
           </div>
         </form>
       </div>
-    </div>
+    </ModalLayer>
   )
 }
 
@@ -1438,7 +1393,6 @@ function DebtsModule({ debts, customers, addDebtPayment, paymentSavingId }) {
     const ok = await addDebtPayment(debt, draft)
     setIsSavingPayment(false)
     if (ok) setPaymentModal({ open: false, debt: null })
-    if (ok) setPaymentModal({ open: false, debt: null })
   }
 
   const activeDebtFiltersList = []
@@ -1780,7 +1734,6 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [transactions, setTransactions] = useState([])
   const [debts, setDebts] = useState([])
-  const [logs, setLogs] = useState([])
   const [toasts, setToasts] = useState([])
   const [debtSaleForm, setDebtSaleForm] = useState({ customerName: '', paidAmount: '' })
   const [movementForm, setMovementForm] = useState({
@@ -1991,11 +1944,10 @@ function App() {
   }
 
   const refreshAppState = async () => {
-    const data = await getAppState()
+    const data = await readWithTimeout(getAppState)
     setProducts(data.products || [])
     setTransactions(data.transactions || [])
     setDebts(data.debts || [])
-    setLogs(data.logs || [])
     return data
   }
 
@@ -2030,7 +1982,6 @@ function App() {
         setProducts([])
         setTransactions([])
         setDebts([])
-        setLogs([])
         setCart([])
         setActiveTab('ventas')
       }
@@ -2052,7 +2003,6 @@ function App() {
         setProducts(data.products || [])
         setTransactions(data.transactions || [])
         setDebts(data.debts || [])
-        setLogs(data.logs || [])
         setDataLoad({ owner: user.id, status: 'ready' })
       })
       .catch((error) => {
@@ -2220,12 +2170,13 @@ function App() {
     }
     setSavingAction(`debt-payment-${debt.id}`)
     try {
-      await addDebtPaymentService(debt.id, {
+      const result = await addDebtPaymentService(debt.id, {
         amount,
         note: draft.note,
         paymentMethod: draft.paymentMethod || 'cash',
       })
-      await refreshAppState()
+      setDebts((current) => current.map((item) => item.id === result.debt.id ? result.debt : item))
+      if (result.transaction) setTransactions((current) => [...current.filter((item) => item.id !== result.transaction.id), result.transaction])
       showToast(`Abono registrado: ${formatCurrency(amount)}`)
       return true
     } catch (error) {
@@ -2246,12 +2197,12 @@ function App() {
     }
     setSavingAction('cash')
     try {
-      await createCashMovementService({
+      const transaction = await createCashMovementService({
         type: movementForm.type,
         amount,
         note: movementForm.note,
       })
-      await refreshAppState()
+      setTransactions((current) => [...current.filter((item) => item.id !== transaction.id), transaction])
       setMovementForm({ type: 'expense', amount: '', note: '', paymentMethod: 'cash' })
       showToast(movementForm.type === 'income' ? 'Ingreso registrado en caja' : 'Egreso registrado en caja')
     } catch (error) {
@@ -2282,10 +2233,10 @@ function App() {
     setSavingAction('delete-product')
     try {
       await deleteProductService(confirmRemove.productId)
-      await createLog('success', 'product', `Producto eliminado: ${product ? productTitle(product) : 'Producto'}`, {
+      setProducts((current) => current.filter((item) => item.id !== confirmRemove.productId))
+      void createLog('success', 'product', `Producto eliminado: ${product ? productTitle(product) : 'Producto'}`, {
         productId: confirmRemove.productId,
-      })
-      await refreshAppState()
+      }).catch(() => showToast('Producto eliminado; no se pudo guardar el registro de actividad.', 'error'))
       closeRemoveModal()
       showToast(product ? `${productTitle(product)} eliminado` : 'Producto eliminado')
     } catch (error) {
@@ -2311,7 +2262,7 @@ function App() {
     const stock = Number(stockForm.stock)
     const purchasePrice = Number(stockForm.purchasePrice)
     const salePrice = Number(stockForm.salePrice)
-    if (!name || salePrice <= 0 || purchasePrice < 0 || stock < 0) {
+    if (!name || ![stock, purchasePrice, salePrice].every(Number.isFinite) || !Number.isInteger(stock) || salePrice <= 0 || purchasePrice < 0 || stock < 0) {
       showToast('Revisa nombre, precios y stock', 'error')
       return
     }
@@ -2331,13 +2282,15 @@ function App() {
         ? await updateProductService(editingProductId, payload)
         : await createProductService(payload)
 
-      await createLog(
+      setProducts((current) => editingProductId
+        ? current.map((item) => item.id === product.id ? product : item)
+        : [...current, product])
+      void createLog(
         'success',
         'product',
         editingProductId ? `Producto actualizado: ${productTitle(product)}` : `Producto creado: ${productTitle(product)}`,
         { productId: product.id }
-      )
-      await refreshAppState()
+      ).catch(() => showToast('Producto guardado; no se pudo guardar el registro de actividad.', 'error'))
       showToast(editingProductId ? `${name} (${stockForm.type}) actualizado` : `${name} (${stockForm.type}) creado`)
       openInventoryList()
     } catch (error) {
@@ -2767,9 +2720,9 @@ function App() {
               </div>
             ) : (
               /* -- FORM ------------------------------------- */
-              <div className="inventory-shell">
+              <div className="inventory-shell product-form-page">
                 <div className="page-header">
-                  <button className="back-btn" onClick={openInventoryList}>
+                  <button className="back-btn" disabled={savingAction === 'stock'} onClick={openInventoryList}>
                     <span className="material-symbols-outlined">arrow_back</span>
                     Volver
                   </button>
@@ -2778,138 +2731,151 @@ function App() {
                   </h2>
                 </div>
 
-                <div className="form-card">
+                <div className="form-card product-form-card">
                   <form onSubmit={handleStockSave} className="inventory-form">
-                    <div className="form-group">
-                      <label>Nombre del producto</label>
-                      <div className="input-with-icon">
-                        <span className="material-symbols-outlined">inventory_2</span>
-                        <input
-                          className="form-input"
-                          value={stockForm.name}
-                          onChange={(e) => setStockForm({ ...stockForm, name: e.target.value })}
-                          placeholder="Ej. Zaza Boyz"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Tipo</label>
-                      <div className="input-with-icon">
-                        <span className="material-symbols-outlined">spa</span>
-                        <select
-                          className="form-select"
-                          value={stockForm.type}
-                          onChange={(e) => setStockForm({ ...stockForm, type: e.target.value })}
-                        >
-                          {productTypes.map((type) => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="form-row">
+                    <fieldset className="product-form-fields" disabled={savingAction === 'stock'}>
+                      <legend className="product-form-legend">Información del producto</legend>
                       <div className="form-group">
-                        <label>Gramo</label>
+                        <label htmlFor="product-name">Nombre del producto</label>
                         <div className="input-with-icon">
-                          <span className="material-symbols-outlined">scale</span>
+                          <InterfaceIcon name="inventory" />
+                          <input
+                            className="form-input"
+                            id="product-name"
+                            value={stockForm.name}
+                            onChange={(e) => setStockForm({ ...stockForm, name: e.target.value })}
+                            placeholder="Ej. Zaza Boyz"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="product-type">Tipo</label>
+                        <div className="input-with-icon">
+                          <InterfaceIcon name="flag" />
                           <select
                             className="form-select"
-                            value={stockForm.size}
-                            onChange={(e) => setStockForm({ ...stockForm, size: e.target.value })}
+                            id="product-type"
+                            value={stockForm.type}
+                            onChange={(e) => setStockForm({ ...stockForm, type: e.target.value })}
                           >
-                            {sizeOptions.slice(1).map((s) => (
-                              <option key={s} value={s}>{s}</option>
+                            {productTypes.map((type) => (
+                              <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
                         </div>
                       </div>
-                      <div className="form-group">
-                        <label>Cantidad</label>
-                        <div className="input-with-icon">
-                          <span className="material-symbols-outlined">pin</span>
-                          <input
-                            className="form-input"
-                            type="number"
-                            min="0"
-                            value={stockForm.stock}
-                            onChange={(e) => setStockForm({ ...stockForm, stock: e.target.value })}
-                            placeholder="20"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Precio compra (RD$)</label>
-                        <div className="input-with-icon">
-                          <span className="material-symbols-outlined">shopping_cart_checkout</span>
-                          <input
-                            className="form-input"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={stockForm.purchasePrice}
-                            onChange={(e) => setStockForm({ ...stockForm, purchasePrice: e.target.value })}
-                            placeholder="0.00"
-                            required
-                          />
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label htmlFor="product-size">Gramo</label>
+                          <div className="input-with-icon">
+                            <InterfaceIcon name="weight" />
+                            <select
+                              className="form-select"
+                              id="product-size"
+                              value={stockForm.size}
+                              onChange={(e) => setStockForm({ ...stockForm, size: e.target.value })}
+                            >
+                              {sizeOptions.slice(1).map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor="product-stock">Cantidad</label>
+                          <div className="input-with-icon">
+                            <InterfaceIcon name="hash" />
+                            <input
+                              className="form-input"
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              step="1"
+                              id="product-stock"
+                              value={stockForm.stock}
+                              onChange={(e) => setStockForm({ ...stockForm, stock: e.target.value })}
+                              placeholder="20"
+                              required
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="form-group">
-                        <label>Precio venta (RD$)</label>
-                        <div className="input-with-icon">
-                          <span className="material-symbols-outlined">sell</span>
-                          <input
-                            className="form-input"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={stockForm.salePrice}
-                            onChange={(e) => setStockForm({ ...stockForm, salePrice: e.target.value })}
-                            placeholder="0.00"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="file-upload-group">
-                      <span>Imagen</span>
-                      <div className="file-upload-zone">
-                        <input type="file" accept="image/*" onChange={handleImageFileChange} />
-                        <div className="file-upload-icon">
-                          <span className="material-symbols-outlined">cloud_upload</span>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label htmlFor="product-cost">Precio compra (RD$)</label>
+                          <div className="input-with-icon">
+                            <InterfaceIcon name="wallet" />
+                            <input
+                              className="form-input"
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              step="0.01"
+                              id="product-cost"
+                              value={stockForm.purchasePrice}
+                              onChange={(e) => setStockForm({ ...stockForm, purchasePrice: e.target.value })}
+                              placeholder="0.00"
+                              required
+                            />
+                          </div>
                         </div>
-                        <span className="file-upload-text">
-                          {stockForm.imageName ? stockForm.imageName : 'Subir imagen'}
-                        </span>
+                        <div className="form-group">
+                          <label htmlFor="product-price">Precio venta (RD$)</label>
+                          <div className="input-with-icon">
+                            <InterfaceIcon name="payment" />
+                            <input
+                              className="form-input"
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              step="0.01"
+                              id="product-price"
+                              value={stockForm.salePrice}
+                              onChange={(e) => setStockForm({ ...stockForm, salePrice: e.target.value })}
+                              placeholder="0.00"
+                              required
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {stockForm.image && (
-                      <div className="image-preview">
-                        <img src={stockForm.image} alt="Vista previa" loading="lazy" decoding="async" />
-                        <div className="image-preview-info">
-                          <span className="image-preview-name">{stockForm.imageName || 'Imagen seleccionada'}</span>
-                          <span className="image-preview-ok">
-                            <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', verticalAlign: 'middle', marginRight: 3 }}>check_circle</span>
-                            Lista para guardar
+                      <div className="file-upload-group">
+                        <label htmlFor="product-image">Imagen <small>Opcional</small></label>
+                        <div className="file-upload-zone">
+                          <input id="product-image" type="file" accept="image/*" onChange={handleImageFileChange} />
+                          <div className="file-upload-icon">
+                            <InterfaceIcon name="upload" />
+                          </div>
+                          <span className="file-upload-text">
+                            {stockForm.imageName ? stockForm.imageName : 'Subir imagen'}
                           </span>
                         </div>
                       </div>
-                    )}
 
+                      {stockForm.image && (
+                        <div className="image-preview">
+                          <img src={stockForm.image} alt="Vista previa" loading="lazy" decoding="async" />
+                          <div className="image-preview-info">
+                            <span className="image-preview-name">{stockForm.imageName || 'Imagen seleccionada'}</span>
+                            <span className="image-preview-ok">
+                              <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', verticalAlign: 'middle', marginRight: 3 }}>check_circle</span>
+                              Lista para guardar
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                    </fieldset>
                     <div className="form-actions">
                       <button type="button" className="ghost-btn" onClick={openInventoryList} disabled={savingAction === 'stock'}>
                         Cancelar
                       </button>
                       <button type="submit" className="primary-btn" disabled={savingAction === 'stock'}>
-                        <span className="material-symbols-outlined">save</span>
+                        <InterfaceIcon name="check" />
                         {savingAction === 'stock' ? 'Guardando...' : 'Guardar'}
                       </button>
                     </div>

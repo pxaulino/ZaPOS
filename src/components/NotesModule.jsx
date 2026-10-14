@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import ModalLayer from './ModalLayer'
 import {
   createNote,
   deleteNote,
@@ -106,9 +106,7 @@ export default function NotesModule({
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
   const saving = useRef(false)
-  const dialog = useRef(null)
   const active = useRef(true)
-  const closeEditorRef = useRef(null)
 
   useEffect(() => {
     active.current = true
@@ -228,54 +226,6 @@ export default function NotesModule({
     if (dirty) setConfirm({ kind: 'discard' })
     else setDraft(null)
   }
-  closeEditorRef.current = closeEditor
-
-  // Keep keyboard focus inside the editor, including its confirmation view.
-  useEffect(() => {
-    if (!draft && !confirm) return undefined
-    const previousFocus = document.activeElement
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const initialFocus =
-      dialog.current?.querySelector('[data-note-initial-focus]') ||
-      dialog.current?.querySelector('input, button')
-    initialFocus?.focus()
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (!saving.current) {
-          if (confirm) setConfirm(null)
-          else closeEditorRef.current()
-        }
-      }
-      if (event.key !== 'Tab') return
-      const focusable = [
-        ...(dialog.current?.querySelectorAll(
-          'button:not(:disabled), input, textarea, select, [tabindex="0"]'
-        ) || [])
-      ].filter((element) => !element.matches(':disabled'))
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (
-        event.shiftKey &&
-        (document.activeElement === first ||
-          !focusable.includes(document.activeElement))
-      ) {
-        event.preventDefault()
-        last?.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first?.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKey)
-      if (previousFocus?.isConnected) previousFocus.focus()
-    }
-  }, [Boolean(draft), confirm])
-
   const openEditor = (note = blankNote()) => {
     setOriginal({ ...note })
     setDraft({ ...note })
@@ -347,9 +297,9 @@ export default function NotesModule({
     <section className="notes-shell" aria-labelledby="notes-heading">
       <header className="notes-heading">
         <div>
-          <h1 id="notes-heading">Notas</h1>
+          <div className="section-title-row"><span className="notes-title-icon"><Icon>notes</Icon></span><h1 id="notes-heading" className="section-title">Notas</h1></div>
           <p>
-            {counts.pendiente} pendientes · {counts.completada} completadas
+            {counts.pendiente} {counts.pendiente === 1 ? 'pendiente' : 'pendientes'} · {counts.completada} completadas
           </p>
         </div>
         <button
@@ -650,10 +600,10 @@ export default function NotesModule({
         </>
       )}
       {(draft || confirm) &&
-        createPortal(
-          <div
+          <ModalLayer
+            focusKey={confirm ? confirm.kind : 'editor'}
             className="notes-overlay"
-            onClick={() => {
+            onDismiss={() => {
               if (!busy) {
                 if (confirm) setConfirm(null)
                 else closeEditor()
@@ -662,7 +612,6 @@ export default function NotesModule({
           >
             {confirm ? (
               <section
-                ref={dialog}
                 className="notes-confirm"
                 role="alertdialog"
                 aria-modal="true"
@@ -722,7 +671,6 @@ export default function NotesModule({
               </section>
             ) : (
               <form
-                ref={dialog}
                 className="note-editor"
                 role="dialog"
                 aria-modal="true"
@@ -738,7 +686,6 @@ export default function NotesModule({
                     <h2 id="note-editor-heading" tabIndex={-1} data-note-initial-focus>
                       {draft.id ? 'Editar nota' : 'Nueva nota'}
                     </h2>
-                    <p>Organiza los detalles de tu negocio.</p>
                   </div>
                   <button
                     className="notes-tool"
@@ -925,9 +872,7 @@ export default function NotesModule({
                 </footer>
               </form>
             )}
-          </div>,
-          document.body
-        )}
+          </ModalLayer>}
     </section>
   )
 }
