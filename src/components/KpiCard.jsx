@@ -5,10 +5,18 @@ export default function KpiCard({
   label,
   value,
   caption,
-  tone = 'default'
+  tone = 'default',
+  onClick,
+  active = false,
 }) {
   return (
-    <div className={`stat-card inventory-stat kpi-${tone}`}>
+    <div
+      className={`stat-card inventory-stat kpi-${tone} ${onClick ? 'stat-card-clickable' : ''} ${active ? 'kpi-active' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="inventory-stat-heading">
         <span className="inventory-stat-icon">
           <InterfaceIcon name={icon} />

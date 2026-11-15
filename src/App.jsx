@@ -646,13 +646,15 @@ function ToastHost({ toasts, onDismiss }) {
   )
 }
 
-function GramFilter({ value, options, onChange, fullWidth = false }) {
+function GramFilter({ value, options, onChange, fullWidth = false, icon = 'filter_list', placeholder }) {
   const [open, setOpen] = useState(false)
 
   const chooseOption = (option) => {
     onChange(option)
     setOpen(false)
   }
+
+  const label = placeholder && value === 'Todos' ? placeholder : value
 
   return (
     <div
@@ -667,10 +669,11 @@ function GramFilter({ value, options, onChange, fullWidth = false }) {
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Filtro actual: ${value}`}
+        aria-label={`Filtro ${placeholder || ''}: ${value}`}
+        title={placeholder ? `${placeholder}: ${value}` : `Filtro: ${value}`}
       >
-        <span className="material-symbols-outlined">filter_list</span>
-        <strong>{value}</strong>
+        <span className="material-symbols-outlined">{icon}</span>
+        <strong>{label}</strong>
         <span className="material-symbols-outlined gram-filter-caret">expand_more</span>
       </button>
 
@@ -1748,6 +1751,7 @@ function App() {
   const [inventorySearch, setInventorySearch] = useState('')
   const [inventoryGramFilter, setInventoryGramFilter] = useState('Todos')
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState('Todos')
+  const [inventoryStockFilter, setInventoryStockFilter] = useState('Todos')
   const [inventoryListPage, setInventoryListPage] = useState(1)
   const [confirmRemove, setConfirmRemove] = useState({ open: false, productId: null })
   const [priceEdit, setPriceEdit] = useState({ open: false, itemId: null, value: '' })
@@ -1782,6 +1786,7 @@ function App() {
   )
 
   const typeOptions = useMemo(() => ['Todos', ...productTypes], [])
+  const stockOptions = useMemo(() => ['Todos', 'Con stock', 'Sin stock'], [])
 
   const filteredSalesProducts = useMemo(
     () =>
@@ -1799,9 +1804,16 @@ function App() {
       products.filter((product) => {
         const gramOk = inventoryGramFilter === 'Todos' || product.size === inventoryGramFilter
         const typeOk = inventoryTypeFilter === 'Todos' || (product.type || 'Hybrida') === inventoryTypeFilter
-        return gramOk && typeOk && productMatches(product, inventorySearch)
+        const numStock = Number(product.stock) || 0
+        const stockOk =
+          inventoryStockFilter === 'Todos'
+            ? true
+            : inventoryStockFilter === 'Con stock'
+            ? numStock > 0
+            : numStock <= 0
+        return gramOk && typeOk && stockOk && productMatches(product, inventorySearch)
       }).sort((a, b) => b.id - a.id),
-    [products, inventoryGramFilter, inventoryTypeFilter, inventorySearch]
+    [products, inventoryGramFilter, inventoryTypeFilter, inventoryStockFilter, inventorySearch]
   )
   const salesPagination = useMemo(
     () => paginate(filteredSalesProducts, salesPage, 6),
@@ -2015,7 +2027,7 @@ function App() {
 
   useEffect(() => {
     setInventoryListPage(1)
-  }, [inventorySearch, inventoryGramFilter, inventoryTypeFilter, products.length])
+  }, [inventorySearch, inventoryGramFilter, inventoryTypeFilter, inventoryStockFilter, products.length])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -2598,9 +2610,31 @@ function App() {
               <div className="inventory-shell">
 
                 <div className="stats-row inventory-stats" aria-label="Resumen del inventario">
-                  <KpiCard icon="inventory" label="Sin stock" value={outOfStockCount} caption="Productos agotados" tone="warning" />
-                  <KpiCard icon="check" label="Productos activos" value={activeProductCount} caption="Con existencias disponibles" />
-                  <KpiCard icon="wallet" label="Valor total" value={formatCurrency(totalInventoryValue)} caption="Existencias a precio de venta" tone="total" />
+                  <KpiCard
+                    icon="inventory"
+                    label="Sin stock"
+                    value={outOfStockCount}
+                    caption="Productos agotados"
+                    tone="warning"
+                    onClick={() => setInventoryStockFilter((cur) => (cur === 'Sin stock' ? 'Todos' : 'Sin stock'))}
+                    active={inventoryStockFilter === 'Sin stock'}
+                  />
+                  <KpiCard
+                    icon="check"
+                    label="Productos activos"
+                    value={activeProductCount}
+                    caption="Con existencias disponibles"
+                    onClick={() => setInventoryStockFilter((cur) => (cur === 'Con stock' ? 'Todos' : 'Con stock'))}
+                    active={inventoryStockFilter === 'Con stock'}
+                  />
+                  <KpiCard
+                    icon="wallet"
+                    label="Valor total"
+                    value={formatCurrency(totalInventoryValue)}
+                    caption="Existencias a precio de venta"
+                    tone="total"
+                    onClick={inventoryStockFilter !== 'Todos' ? () => setInventoryStockFilter('Todos') : undefined}
+                  />
                 </div>
 
                 <div className="section-head" style={{ marginBottom: 14 }}>
@@ -2627,6 +2661,13 @@ function App() {
                   >
                     <GramFilter value={inventoryGramFilter} options={sizeOptions} onChange={setInventoryGramFilter} />
                     <GramFilter value={inventoryTypeFilter} options={typeOptions} onChange={setInventoryTypeFilter} />
+                    <GramFilter
+                      value={inventoryStockFilter}
+                      options={stockOptions}
+                      onChange={setInventoryStockFilter}
+                      icon="inventory_2"
+                      placeholder="Stock"
+                    />
                   </SmartSearch>
                 </div>
 
@@ -2917,6 +2958,7 @@ function App() {
                 setInventorySearch(products.find((product) => product.id === note.relationId)?.name || '')
                 setInventoryGramFilter('Todos')
                 setInventoryTypeFilter('Todos')
+                setInventoryStockFilter('Todos')
                 setActiveTab('inventario')
               } else setActiveTab(['cliente', 'deuda'].includes(note.relationType) ? 'deudas' : 'caja')
             }}

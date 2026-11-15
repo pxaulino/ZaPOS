@@ -3302,7 +3302,6 @@ button .material-symbols-outlined {
 
 @media (max-width: 520px) {
   .smart-filter-panel {
-    grid-template-columns: 1fr;
     gap: 8px;
     padding: 9px;
     border-radius: 18px;
@@ -3310,25 +3309,45 @@ button .material-symbols-outlined {
 
   .smart-filter-actions {
     width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     align-items: stretch;
+    gap: 8px;
   }
 
   .smart-filter-actions .filter-count-badge {
-    grid-column: 1 / -1;
+    width: 100%;
     justify-content: center;
   }
 
-  .smart-filter-actions .gram-filter,
+  .smart-filter-actions .gram-filter {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 86px;
+    width: auto;
+  }
+
   .smart-filter-actions .gram-filter-trigger {
     width: 100%;
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .smart-filter-actions .gram-filter-trigger strong {
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .smart-filter-actions .gram-filter-menu {
     left: 0;
     right: auto;
-    width: min(190px, 100%);
+    width: min(150px, 100%);
+  }
+
+  .smart-filter-actions .gram-filter:last-of-type .gram-filter-menu {
+    left: auto;
+    right: 0;
   }
 
   .inv-filter-bar .smart-filter-panel {
@@ -5722,4 +5741,31 @@ button:disabled { cursor: default; }
 }
 @media (prefers-reduced-motion: reduce) {
   .module-stage, .app-spinner, .module-skeleton, .bottom-nav-btn.active .bottom-nav-icon { animation: none; }
+}
+
+/* Clickable KPI cards and active filter state */
+.stat-card-clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.stat-card-clickable:hover {
+  transform: translateY(-2px);
+}
+
+.stat-card-clickable:active {
+  transform: scale(0.97);
+}
+
+.stat-card.kpi-active {
+  border-color: #0d6b3a !important;
+  box-shadow: 0 0 0 2px rgba(13, 107, 58, 0.25) !important;
+  background: #f0fdf4 !important;
+}
+
+.stat-card.kpi-warning.kpi-active {
+  border-color: #c2410c !important;
+  box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.25) !important;
+  background: #fff7ed !important;
 }
